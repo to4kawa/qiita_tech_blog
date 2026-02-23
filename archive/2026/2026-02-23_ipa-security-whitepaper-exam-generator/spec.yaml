@@ -1,0 +1,243 @@
+project:
+  name: ipa_security_whitepaper_exam_generator
+  goal: >
+    IPA「情報セキュリティ白書」（複数年分）と
+    情報処理技術者試験の過去問分野情報を読み込み、
+    今後の試験で出そうな予想問題を合計 50 問生成する。
+  quality_targets:
+    - "テンプレ焼き増しを禁止：設問・選択肢・解説の文面重複を抑える"
+    - "午前2は複数の設問タイプを混在させ、正答位置を分散する"
+    - "午後1はtopic固有のシナリオ要素を必ず含め、同一課題文の固定化を避ける"
+    - "著作権配慮：原文の逐語再現を避け、要約・再構成のオリジナル文にする"
+    - "問題セットとして、近年の傾向（クラウド化／サプライチェーン／人材不足等）を俯瞰できる構成にする"
+
+corpus:
+  whitepapers:
+    - year: 2025
+      url: "https://www.ipa.go.jp/publish/wp-security/j5u9nn0000004wk0-att/ISWP2025_Chap4.pdf"
+      type: pdf
+      language: ja
+    - year: 2024
+      url: "https://www.ipa.go.jp/publish/wp-security/j5u9nn0000004wk0-att/iswp2024_all.pdf"
+      type: pdf
+      language: ja
+    - year: 2023
+      url: "https://www.ipa.go.jp/publish/wp-security/j5u9nn0000004wk0-att/iswp2023_all.pdf"
+      type: pdf
+      language: ja
+
+  past_exams:
+    description: >
+      IPA 情報処理安全確保支援士試験（SC）などの過去問から、
+      分野ラベル付きで抽出したメタデータを与える（本文は与えない）。
+    format_example: |
+      - year: 2024
+        exam: SC
+        questions:
+          - id: SC2024_午後1_問1
+            domain: "マルウェア/ランサムウェア"
+          - id: SC2024_午後1_問2
+            domain: "クラウドセキュリティ"
+      - year: 2023
+        exam: SC
+        questions:
+          - id: SC2023_午後2_問1
+            domain: "重要インフラ/OTセキュリティ"
+
+preprocess:
+  pdf_to_text:
+    chunking:
+      max_chars: 2500
+      overlap_chars: 200
+    normalization:
+      - "全角/半角の揺れを正規化"
+      - "連続空白/改行の正規化"
+    structure_extraction:
+      - "章/節見出しらしき行を検出し chapter_title, section_title を付与"
+      - "図表キャプション/脚注/参考文献セクションはフラグ付け（topic抽出の重みを下げる）"
+    output_chunk_schema:
+      - year: int
+      - chapter_title: str
+      - section_title: str
+      - chunk_id: str
+      - text: str
+      - flags: [str]  # 例: ["figure_caption","footnote","references"]
+
+model_tasks:
+  - name: extract_topics_from_whitepaper
+    description: >
+      各年の白書から重要トピックとサブトピックを章単位で抽出し、
+      試験に出題されそうなテーマ候補リストを作成する。
+      ノイズ（図表・脚注・参考文献）に引っ張られないこと。
+    output_schema:
+      - year: int
+        topics:
+          - name: str
+            chapter: str
+            subtopics: [str]
+            keywords: [str]
+            importance: str               # "high" / "med" / "low"
+            evidence_chunk_ids: [str]     # 根拠チャンクID
+
+  - name: map_exam_domains_to_topics
+    description: >
+      過去問の分野（domain）と白書トピックを対応付け、
+      「よく出る分野」「まだ出ていないが頻出化しそうな分野」を分類する。
+      分類基準（criteria）を明記して暴れを抑える。
+    criteria:
+      frequent: >
+        過去問domainで複数年出現し、白書でもimportanceがhigh/medで繰り返し言及される。
+      emerging: >
+        白書でimportanceがhigh（または複数年でmed以上）だが、過去問domainでの出現が少ない/ない。
+    output_schema:
+      - domain: str
+        related_topics: [str]
+        trend: str                 # "frequent" / "emerging"
+        gap_notes: str             # 判定理由を1行
+        representative_chunk_ids: [str]  # 関連topicのevidence_chunk_idsから代表を選んで添付
+
+  - name: generate_predicted_questions
+    description: >
+      白書トピックと過去問分野の傾向から、予想問題（設問文・選択肢・解説）を生成する。
+      テンプレ焼き増しを避けるため、設問タイプ多様化・正答位置分散・重複検査を行う。
+      さらに、根拠トレース用に「どの白書チャンクから着想したか」を各問題に保持する。
+    question_style:
+      exam_types:
+        - name: "SC_午前2"
+          format: "四肢択一の単問"
+          difficulty_guidance: >
+            暗記ではなく「定義・性質・効果・適用条件」を判別できる深さ。
+            1問1論点で、用語→意味→使いどころが繋がるようにする。
+          learning_objective_guidance:
+            - "用語の定義と周辺概念の区別ができる"
+            - "対策の目的（何を防ぐ／何を検知する）を選べる"
+            - "初動・優先順位の判断ができる"
+          variants:
+            - "定義/用語"
+            - "目的/狙い"
+            - "優先順位/初動"
+            - "例外/やってはいけない"
+            - "ログ/検知・監視"
+            - "インシデント対応/報告・封じ込め"
+
+        - name: "SC_午後1"
+          format: "長文シナリオ＋設問 3〜4 問"
+          difficulty_guidance: >
+            要件整理・リスク評価・対策立案・運用設計（KPI含む）を記述できる深さ。
+            「前提→課題→優先順位→対策→効果/残リスク→評価」の筋道が通るようにする。
+          learning_objective_guidance:
+            - "制約条件（人・金・時間・責任分界）を踏まえた対策選定ができる"
+            - "技術/運用/教育の組合せを、理由付きで提示できる"
+            - "評価指標（KPI/KRI）を設定し、運用に落とせる"
+          scenario_requirements:
+            - "topic固有の要素（資産/関係者/制約/既存対策/発生事象）を最低3つ入れる"
+            - "課題文の固定化（資産台帳遅延/委託先ばらつき/ログ不足のコピペ）を禁止"
+            - "記述は『課題抽出→優先順位→対策→評価(KPI)』の流れを踏めるようにする"
+
+    question_count:
+      max_total: 50
+      allocation:
+        SC_午前2: 30
+        SC_午後1: 20
+
+    domain_balance:
+      purpose: "分野（domain）の偏りを抑え、頻出分野と新興分野が混在するセットにする"
+      mapping_rule: "map_exam_domains_to_topics の domain を基準に配分する"
+      targets:
+        frequent_ratio: 0.65
+        emerging_ratio: 0.35
+      domain_quota_example:
+        - domain_group: "マルウェア/ランサムウェア"
+          min_total: 6
+          max_total: 10
+        - domain_group: "クラウドセキュリティ"
+          min_total: 6
+          max_total: 10
+        - domain_group: "認証/ID・アクセス管理"
+          min_total: 4
+          max_total: 8
+        - domain_group: "ネットワーク/境界防御・ゼロトラスト"
+          min_total: 4
+          max_total: 8
+        - domain_group: "OT/重要インフラ"
+          min_total: 3
+          max_total: 6
+        - domain_group: "監視/ログ・検知/IR"
+          min_total: 4
+          max_total: 8
+
+    topic_spread:
+      enforce_diversity: true
+      max_questions_per_topic: 3
+
+    anti_duplication:
+      similarity_check:
+        enable: true
+        method: "短いフレーズや選択肢の重複を検知し、しきい値以上なら別表現に言い換える"
+        threshold: 0.65
+      rules:
+        - "choicesの文面は各問題ごとに再生成し、4択を固定しない"
+        - "正答位置（A/B/C/D）が偏らないよう分散させる"
+        - "explanationに『正答理由＋誤答がダメな理由を1つ』を含める"
+        - "explanationの末尾に『次に何を理解すればよいか（次の一歩）』を1文で示す"
+
+    output_schema:
+      - exam_type: str
+        topic: str
+        question_id: str
+        learning_objective: str
+        source_topics: [str]
+        source_chunk_ids: [str]     # 着想元チャンク（evidence_chunk_idsから選択）
+        body: str
+        choices: [str]
+        answer: str
+        explanation: str
+        next_step: str              # 復習の次の一歩（1文）
+
+  - name: copyright_similarity_check_and_rewrite
+    description: >
+      生成済み問題文・解説について、入力チャンク（白書テキスト）との類似が高い箇所を検出し、
+      原文の逐語再現にならないようリライトする（要約・再構成に寄せる）。
+      source_chunk_ids を使い、該当チャンク周辺の表現に引っ張られ過ぎた箇所を優先的に修正する。
+    input:
+      - predicted_questions_yaml
+      - whitepaper_text_chunks
+    method:
+      - "文・フレーズ単位で類似が高い箇所を抽出"
+      - "該当箇所のみ意味を保ったまま言い換え（構文・語彙を置換、冗長さを除去）"
+    output:
+      - predicted_questions_yaml_rewritten
+
+workflow:
+  steps:
+    - run: load_all_whitepapers_as_text
+      with: preprocess.pdf_to_text
+    - run: extract_topics_from_whitepaper
+    - run: load_past_exam_domains
+    - run: map_exam_domains_to_topics
+    - run: generate_predicted_questions
+    - run: copyright_similarity_check_and_rewrite
+
+constraints:
+  must:
+    - copyright: >
+        白書本文や過去問本文をそのまま引用せず、
+        要約・再構成したオリジナル問題文と解説にする。
+    - language: "問題文・解説は日本語で作成する。"
+    - difficulty: "情報処理安全確保支援士（SC）試験レベルを基準とする。"
+    - output_uniqueness: >
+        設問・選択肢・解説の重複を抑え、同一topicでも別角度の問いにする。
+  should:
+    - "frequent/emerging の比率を目標値に近づけ、学習効果の高い構成にする"
+    - "午後1は管理策・技術策・運用策の整合が見える答案導線（筋）を作る"
+    - "根拠トレースができるよう source_chunk_ids を必ず付与する"
+  try:
+    - "問題セットに“今年のストーリー”が生まれるよう、年度傾向を俯瞰できる並びにする"
+    - "説明文は簡潔にしつつ、誤答の落とし穴が伝わる表現にする"
+
+interface:
+  input:
+    - whitepaper_text_chunks
+    - past_exam_domain_yaml
+  output:
+    - predicted_questions_yaml_rewritten
