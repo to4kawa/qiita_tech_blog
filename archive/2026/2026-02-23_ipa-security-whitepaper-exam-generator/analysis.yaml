@@ -1,0 +1,157 @@
+extract_topics_from_whitepaper:
+  -
+    year: 2025
+    topics:
+      -
+        name: AIを悪用したフィッシングの高度化
+        chapter: 第4章 脅威動向
+        keywords:
+          - 生成AI
+          - なりすまし
+          - BEC
+      -
+        name: サプライチェーン攻撃の再拡大
+        chapter: 第4章 脅威動向
+        keywords:
+          - 委託先
+          - ソフトウェア更新
+          - SBOM
+      -
+        name: OT/重要インフラへの侵入リスク
+        chapter: 第4章 脅威動向
+        keywords:
+          - ICS
+          - 可用性
+          - 横展開
+      -
+        name: クラウド設定不備とデータ公開
+        chapter: 第4章 脅威動向
+        keywords:
+          - IAM
+          - 公開バケット
+          - CSPM
+      -
+        name: ゼロトラスト実装の実務課題
+        chapter: 第4章 対策
+        keywords:
+          - 継続認証
+          - 最小権限
+          - 端末姿勢
+  -
+    year: 2024
+    topics:
+      -
+        name: ランサムウェア被害の二重恐喝化
+        chapter: 第2章 脅威
+        keywords:
+          - 暗号化
+          - 情報窃取
+          - 身代金
+      -
+        name: 委託先経由侵害の顕在化
+        chapter: 第2章 脅威
+        keywords:
+          - サードパーティ
+          - VPN
+          - 認証情報漏えい
+      -
+        name: クラウドネイティブ環境の攻撃面増大
+        chapter: 第3章 技術
+        keywords:
+          - コンテナ
+          - Kubernetes
+          - 秘密情報管理
+      -
+        name: 脆弱性公開後の短期悪用
+        chapter: 第2章 脅威
+        keywords:
+          - N-day
+          - PoC
+          - パッチ運用
+      -
+        name: セキュリティ人材不足と運用自動化
+        chapter: 第5章 施策
+        keywords:
+          - SOAR
+          - SOC
+          - 教育
+  -
+    year: 2023
+    topics:
+      -
+        name: サイバー攻撃の地政学的影響
+        chapter: 第1章 概況
+        keywords:
+          - 国家支援
+          - 偽情報
+          - 標的型攻撃
+      -
+        name: ID管理の不備による侵害
+        chapter: 第3章 課題
+        keywords:
+          - 特権ID
+          - MFA
+          - IDライフサイクル
+      -
+        name: メール起点攻撃の継続
+        chapter: 第2章 脅威
+        keywords:
+          - フィッシング
+          - マクロ
+          - URL解析
+      -
+        name: ログ監視と検知高度化の必要性
+        chapter: 第4章 対策
+        keywords:
+          - UEBA
+          - SIEM
+          - 相関分析
+      -
+        name: 事業継続とインシデント対応連携
+        chapter: 第5章 ガバナンス
+        keywords:
+          - BCP
+          - CSIRT
+          - 初動
+map_exam_domains_to_topics:
+  -
+    domain: マルウェア/ランサムウェア
+    related_topics:
+      - ランサムウェア被害の二重恐喝化
+      - 脆弱性公開後の短期悪用
+    trend: frequent
+  -
+    domain: クラウドセキュリティ
+    related_topics:
+      - クラウド設定不備とデータ公開
+      - クラウドネイティブ環境の攻撃面増大
+    trend: frequent
+  -
+    domain: 重要インフラ/OTセキュリティ
+    related_topics:
+      - OT/重要インフラへの侵入リスク
+      - 事業継続とインシデント対応連携
+    trend: frequent
+  -
+    domain: サプライチェーンセキュリティ
+    related_topics:
+      - サプライチェーン攻撃の再拡大
+      - 委託先経由侵害の顕在化
+    trend: emerging
+  -
+    domain: ID/認証管理
+    related_topics:
+      - ID管理の不備による侵害
+      - ゼロトラスト実装の実務課題
+    trend: frequent
+  -
+    domain: SOC/ログ分析
+    related_topics:
+      - ログ監視と検知高度化の必要性
+      - セキュリティ人材不足と運用自動化
+    trend: emerging
+  -
+    domain: 生成AI悪用対策
+    related_topics:
+      - AIを悪用したフィッシングの高度化
+    trend: emerging
